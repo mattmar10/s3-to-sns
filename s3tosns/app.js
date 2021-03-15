@@ -22,7 +22,11 @@ let response;
 exports.lambdaHandler = async (event, context) => {
     try {
         
-        
+        let snsDestination = process.env.SNS_DESTINATION
+        if(snsDestination == null || snsDestination == ''){
+            throw('Unable to determine SNS destination. Please define SNS_DESTINATION')
+        }
+        console.log('Delivering to SNS: ', snsDestination);
         console.log("Handling event: ", JSON.stringify(event));
 
         // Read options from the event parameter.
@@ -44,6 +48,24 @@ exports.lambdaHandler = async (event, context) => {
         
         var url = 'https://'+ srcBucket + '.s3.amazonaws.com/' + srcKey
         console.log('URL to file: ', url);
+
+
+        var snsParameters = {
+            TopicArn: 'arn:aws:sns:us-east-1:464570369687:NotifyMe', //add variable for this
+            Message: 'INTRUDER!! ' + url
+        }
+
+
+        var sns = new AWS.SNS();
+        sns.publish(snsParameters, function (err, data) {
+            if (err) {
+                console.error('error publishing to SNS');
+                callback(Error(err))
+            } else {
+                console.log('message published to SNS');
+                callback(null, "success")
+            }
+        });
 
         //publish to SNS for delivery
         return url; 

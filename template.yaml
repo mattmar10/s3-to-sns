@@ -10,6 +10,9 @@ Parameters:
   S3BucketName: 
     Type: String
     Description: Name of the the S3 source bucket.
+  SNSDestinationArn:
+    Type: String
+    Description: Destinatinon of the SNS topic for notifications.
 
 Resources:
   SourceBucket:
@@ -23,7 +26,11 @@ Resources:
       CodeUri: s3tosns/
       Handler: app.lambdaHandler
       Runtime: nodejs12.x
-      Events:
+      Environment:
+        Variables:
+          SNS_DESTINATION: 
+            Ref: SNSDestinationArn
+=      Events:
         S3Event:
           Type: S3
           Properties:

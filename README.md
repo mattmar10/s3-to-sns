@@ -35,11 +35,16 @@ sam local invoke -e event.json
 ...
 Events:
     S3Event:
-        Type: S3 # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-        Properties:
-            Path: /hello
-            Method: get
-```
+        Type: S3
+          Properties:
+            Bucket:
+              Ref: SourceBucket     # This must be the name of an S3 bucket declared in the same template file
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                - Name: suffix      # or "suffix"
+                  Value: mp4      # The value to search for in the S3 object key names
 
 ## Packaging and deployment
 
@@ -47,10 +52,10 @@ AWS Lambda NodeJS runtime requires a flat folder with all dependencies including
 
 ```yaml
 ...
-    HelloWorldFunction:
+    S3ToSNS:
         Type: AWS::Serverless::Function
         Properties:
-            CodeUri: hello-world/
+            CodeUri: s3tosns/
             ...
 ```
 
