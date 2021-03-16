@@ -5,8 +5,6 @@ const util = require('util');
 // get reference to S3 client
 const s3 = new AWS.S3();
 
-let response;
-
 /**
  *
  * Event doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-input-format
@@ -26,8 +24,6 @@ exports.lambdaHandler = async (event, context) => {
         if(snsDestination == null || snsDestination == ''){
             throw('Unable to determine SNS destination. Please define SNS_DESTINATION')
         }
-        console.log('Delivering to SNS: ', snsDestination);
-        console.log("Handling event: ", JSON.stringify(event));
 
         // Read options from the event parameter.
         console.log("Reading options from event:\n", util.inspect(event, {depth: 5}));
@@ -51,24 +47,26 @@ exports.lambdaHandler = async (event, context) => {
 
 
         var snsParameters = {
-            TopicArn: 'arn:aws:sns:us-east-1:464570369687:NotifyMe', //add variable for this
-            Message: 'INTRUDER!! ' + url
-        }
-
-
-        var sns = new AWS.SNS();
-        sns.publish(snsParameters, function (err, data) {
-            if (err) {
-                console.error('error publishing to SNS');
-                callback(Error(err))
-            } else {
-                console.log('message published to SNS');
-                callback(null, "success")
-            }
-        });
+            TopicArn: snsDestination, 
+            Message: 'Cam footage!! ' + url
+        }        
+        
+        // Create promise and SNS service object
+        var publishTextPromise = new AWS.SNS({apiVersion: '2010-03-31'}).publish(snsParameters).promise();
+        
+        // Handle promise's fulfilled/rejected states
+        publishTextPromise.then(
+          function(data) {
+            console.log(`Message ${snsParameters.Message} sent to the topic ${snsParameters.TopicArn}`);
+            console.log("MessageID is " + data.MessageId);
+          }).catch(
+            function(err) {
+            console.error(err, err.stack);
+          });
+        
 
         //publish to SNS for delivery
-        return url; 
+        return publishTextPromise; 
 
     } catch (err) {
         console.log(err);

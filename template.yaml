@@ -10,27 +10,66 @@ Parameters:
   S3BucketName: 
     Type: String
     Description: Name of the the S3 source bucket.
-  SNSDestinationArn:
+  SNSTopicName:
     Type: String
-    Description: Destinatinon of the SNS topic for notifications.
+    Description: SNS Delivery topic name.
+  SMSPhoneNumber:
+    Type: String
+    Description: Phonenumber for SMS Delivery.
+  SMSPhoneNumber2:
+    Type: String
+    Description: Phonenumber for SMS Delivery.
 
 Resources:
   SourceBucket:
     Type: AWS::S3::Bucket 
     Properties: 
       BucketName: !Ref S3BucketName
+      AccessControl: "PublicRead"
+  SNSDeliveryTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - 
+          Endpoint: !Ref SMSPhoneNumber
+          Protocol: "sms"
+        - 
+          Endpoint: !Ref SMSPhoneNumber2
+          Protocol: "sms"
+      TopicName: !Ref SNSTopicName
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      PolicyDocument:
+        Id: !Sub '${S3BucketName}-Policy'
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join 
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref SourceBucket
+                - /*
+      Bucket: !Ref SourceBucket
   S3ToSNS:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Type: AWS::Serverless::Function 
     Properties:
       Timeout: 30
       CodeUri: s3tosns/
       Handler: app.lambdaHandler
       Runtime: nodejs12.x
+      Policies:
+        - 
+          SNSPublishMessagePolicy:
+            TopicName: !GetAtt SNSDeliveryTopic.TopicName
       Environment:
         Variables:
           SNS_DESTINATION: 
-            Ref: SNSDestinationArn
-=      Events:
+            Ref: SNSDeliveryTopic
+      Events:
         S3Event:
           Type: S3
           Properties:
@@ -41,19 +80,6 @@ Resources:
               S3Key:
                 Rules:
                 - Name: suffix      # or "suffix"
-                  Value: mp4      # The value to search for in the S3 object key names
+                  Value: .mp4      # The value to search for in the S3 object key names
 
 
-Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
